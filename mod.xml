@@ -1,0 +1,9 @@
+<Mod
+    name="Boss Locator"
+    description="Track selected Noita bosses, their last known positions, and per-world death state."
+    author="Boss Locator"
+    version="0.1.0"
+    api_version="1"
+    enabled="1"
+    request_no_api_restrictions="0"
+/> 
