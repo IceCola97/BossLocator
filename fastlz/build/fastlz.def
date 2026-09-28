@@ -1,0 +1,5 @@
+LIBRARY FastLZ
+EXPORTS
+    fastlz_compress
+    fastlz_compress_level
+    fastlz_decompress

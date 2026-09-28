@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>FastLzInterop</AssemblyName>
+    <RootNamespace>FastLzInterop</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!-- Must be a 32-bit process: the bundled lua51.dll is 32-bit LuaJIT,
+         and the fastlz_x86.dll built from build/fastlz.c is 32-bit too. -->
+    <RuntimeIdentifier>win-x86</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <PlatformTarget>x86</PlatformTarget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Native DLLs and the Lua script must sit next to the executable. -->
+    <None Include="native\fastlz_x86.dll">
+      <Link>fastlz_x86.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\lua51.dll">
+      <Link>lua51.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\fastlz.lua">
+      <Link>fastlz.lua</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>
