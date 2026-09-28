@@ -1,67 +1,62 @@
-# Boss Locator
+# Boss 定位器
 
-This is a Safe API Noita mod. Copy this directory to `mods/boss_locator` in the
-Noita installation (the Lua paths use that folder name). It tracks the boss
-entities listed in `files/config.lua` while they are loaded, stores the last
-observed position in the current world save, and draws a screen marker (or an
-edge arrow) for the current parallel world.
+[English](README.en.md) | [简体中文](README.md)
 
-Enable or disable every entry under the mod settings page. The settings page
-also reports whether the current world's boss is dead, absent from that world,
-currently tracked, or only known from an earlier observation.
+> 本项目由 AI 辅助制作，详见 [AI 辅助制作](#ai-辅助制作)。
 
-## Persistence model
+这是一个使用 Safe API 的 Noita 模组。把本目录复制到 Noita 安装目录下的
+`mods/boss_locator`（Lua 路径使用该文件夹名）。它会在 `files/config.lua` 中列出的
+Boss 实体被加载时进行追踪，把最近一次观测到的位置存入当前世界的存档，并为当前
+平行世界绘制屏幕标记（或屏幕边缘箭头）。
 
-Runtime observations are written with `GlobalsSetValue`, which is part of the
-current world save. Keys are namespaced by the New Game+ count, parallel-world
-index, and boss id. The engine's `GetParallelWorldPosition` result is used when
-available, with the normal/NG+ world widths as a compatibility fallback. The
-user-facing checkboxes are ordinary runtime mod settings and are kept separate
-from save data.
+可以在模组设置页中逐项启用或禁用。设置页还会显示当前世界的 Boss 是已死亡、
+不在该世界、正在被追踪，还是仅来自更早的一次观测。
 
-Tracked entities receive a small `script_death` observer, while the scanner
-also checks HP and applicable vanilla main-world death flags. An entity that
-simply disappears is treated as a streamed chunk unload. Its cached position
-is kept, so returning to the area can replace it with the loaded entity. A
-confirmed death is sticky for that world and hides the marker. This is why the
-mod never falls back to a default coordinate after an observed entity is
-unloaded.
+## 持久化模型
 
-Repeatable types are handled separately. The two Parallel World shadow Bosses
-and Sauvojen tuntija (which Monstrous Powder can create) record the most recent
-defeated instance without permanently closing that Boss type. A later instance
-can therefore become `alive`, and every currently loaded instance receives its
-own marker. Epäalkemisti is excluded from this rule: destroying its Death Orb
-is a final death for that world.
+运行时观测通过 `GlobalsSetValue` 写入，属于当前世界存档的一部分。键名按 New Game+
+次数、平行世界索引和 Boss id 进行命名空间划分。当引擎提供
+`GetParallelWorldPosition` 时优先使用其结果，并以普通/NG+ 的世界宽度作为兼容性回退。
+面向用户的复选框只是普通的运行时模组设置，与存档数据分开存放。
 
-Epäalkemisti (the Non-alchemist) is represented as a resurrection-aware entry:
-its 220-frame Death Orb phase is stored as `revive_pending`, not `dead`. The
-orb being unloaded keeps that pending state and position; seeing the new living
-entity changes it back to `alive`, while observing the orb at zero HP records a
-confirmed death. The mod does not create its own timer. Vanilla's orb uses a
-LuaComponent scheduled every 220 frames and respawns the Boss at the orb's
-current transform. If the orb is streamed out, its entity data and transform
-are saved with the chunk. On a later load, the vanilla component is authoritative
-about whether the 220-frame callback resumes or fires immediately; either way,
-the respawn location is the saved orb position, never a made-up default.
+被追踪的实体会挂上一个轻量的 `script_death` 观察器，同时扫描器还会检查 HP 以及
+适用的原版主世界死亡标记。对于只是直接消失的实体，会被视为所在区块被流式卸载。
+其缓存位置会被保留，因此再次回到该区域时可以用已加载的实体替换它。已确认的死亡
+对于该世界是粘性的，并会隐藏标记。这就是为什么模组在已观测实体被卸载后，绝不会
+回退到某个默认坐标。
 
-## Boss definitions
+可重复生成的类型单独处理。两个平行世界的暗影 Boss 以及 Sauvojen tuntija（可由
+Monstrous Powder 创造）只记录最近一次被击败的实例，而不会永久关闭该 Boss 类型。
+因此之后出现的实例可以重新变为 `alive`，且当前每个已加载的实例都会获得各自的标记。
+Epäalkemisti 不适用此规则：摧毁它的死亡之球即该世界的最终死亡。
 
-`files/config.lua` contains the boss list, filename/tag matchers, world policy,
-resurrection metadata, and optional default coordinates. Vanilla entity
-filenames and tags can change between game versions or be altered by another
-mod, so the matchers are kept in one place. Filename/name matching is primary;
-tags are used as extra checks where two entities share a filename. Default
-coordinates are intentionally empty until verified against a specific game
-data version; an unobserved boss is not shown at an invented location.
+Epäalkemisti（非炼金术士）被表示为一种感知复活的条目：其持续 220 帧的死亡之球阶段
+被记为 `revive_pending`，而不是 `dead`。死亡之球被卸载时会保留该待复活状态与位置；
+看到新的存活实体时状态会变回 `alive`，而在观测到死亡之球生命值为零时则记录为已确认
+死亡。模组不会自行创建计时器。原版死亡之球使用一个每 220 帧调度一次的 LuaComponent，
+并在死亡之球当前的 transform 位置重生 Boss。如果死亡之球被流式卸载，其实体数据与
+transform 会随区块一起保存。之后重新加载时，无论 220 帧回调是继续还是立即触发，都以
+原版组件为准；两种情况下，重生位置都是存档中的死亡之球位置，绝不会是凭空编造的默认值。
 
-No unsafe file permission is requested. Existing saves are not scanned from
-disk; state begins accumulating when this mod is enabled and the relevant
-chunks are observed.
+## Boss 定义
 
-## Verification
+`files/config.lua` 包含 Boss 列表、文件名/标签匹配规则、世界策略、复活元数据，以及
+可选的默认坐标。原版实体的文件名和标签可能随游戏版本变化，也可能被其他模组修改，
+因此所有匹配规则集中放在一处。以文件名/名称匹配为主；当两个实体共用同一文件名时，
+用标签作为额外校验。默认坐标在针对具体游戏数据版本验证之前有意留空；未被观测到的
+Boss 不会显示在虚构的位置上。
 
-`tests/` contains Lua 5.1 tests for persistence, parallel-world selection,
-death callbacks, unload handling, and the resurrection transition race. The
-small C# runner loads the `lua51.dll` shipped with Noita so the tests use the
-same Lua generation as the game.
+未申请任何不安全的文件权限。不会从磁盘扫描已有的存档；状态从启用本模组并观测到
+相关区块时开始累积。
+
+## 验证
+
+`tests/` 中包含用于验证持久化、平行世界选择、死亡回调、卸载处理以及复活状态转换
+竞态的 Lua 5.1 测试。小型 C# 运行器加载 Noita 自带的 `lua51.dll`，使测试使用与游戏
+相同的 Lua 版本。
+
+## AI 辅助制作
+
+本项目在 AI 辅助下完成。AI 参与了 Lua 模组代码、测试套件与文档的
+编写。所有关于引擎行为的假设都由 `tests/` 中的测试和游戏内验证支撑；凡未针对具体
+游戏数据版本验证过的内容，都会有意留空而不是猜测。
