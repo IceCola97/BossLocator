@@ -15,7 +15,8 @@
     "saves/NoitaSaveTest/",
     "*.dll",
     "fastlz/FastLzInterop/",
-    "fastlz/build/"
+    "fastlz/build/",
+    "fastlz/real/"
   ],
   "zip": false
 }
