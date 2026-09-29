@@ -12,6 +12,16 @@ BossLocatorConfig.NG_PLUS_WORLD_WIDTH = 32768
 BossLocatorConfig.SCAN_IDS_PER_FRAME = 2000
 BossLocatorConfig.POSITION_SAVE_INTERVAL = 15
 
+-- Settings owned by the save scanner (see settings.lua).
+BossLocatorConfig.SETTING_SCAN_SAVE = "scan_save_positions"
+BossLocatorConfig.SETTING_SLOT_OVERRIDE = "save_slot_override"
+BossLocatorConfig.SETTING_SCAN_ON_LOAD = "save_scan_on_load"
+
+-- The engine names its save directories save00 - save06 (the range the
+-- "Save Slots Enabler" game mode exposes).  Only used to build the manual
+-- override list - the scanner itself discovers the slots that exist.
+BossLocatorConfig.SAVE_SLOT_COUNT = 7
+
 -- world_policy values:
 --   main     the entity is generated only in the main world
 --   parallel the entity is generated only in parallel worlds
@@ -41,6 +51,12 @@ BossLocatorConfig.BOSSES = {
         filename_patterns = { "boss_limbs/boss_limbs.xml" },
         name_patterns = { "$animal_boss_limbs", "kolmisilmän koipi", "three-eye's legs" },
         tags = { "boss" },
+        -- The vanilla data also contains entities with the same name that are
+        -- not the Boss: boss_limbs_physics.xml (its physics body, tag
+        -- "glue_NOT") and the copy below ending_placeholder/ (no "boss" tag).
+        -- Requiring the Boss tag keeps them out of the tracker and out of a
+        -- save scan.
+        require_tags = true,
         exclude_tags = { "boss_parallel", "boss_minion" },
         world_policy = "main",
         default_position = nil,
@@ -128,10 +144,14 @@ BossLocatorConfig.BOSSES = {
     {
         id = "alkemistin_varjo",
         display_name = "Alkemistin Varjo (Alchemist's Shadow)",
-        filename_patterns = { "boss_alchemist" },
-        name_patterns = { "$animal_boss_alchemist" },
-        tags = { "boss_parallel" },
-        require_tags = true,
+        -- The parallel copy is an entity of its own rather than a tagged
+        -- variant: data/entities/animals/parallel/alchemist/parallel_alchemist.xml
+        -- with the name "$animal_parallel_alchemist".  The tag "boss_parallel"
+        -- that this entry used to require does not exist in the vanilla entity
+        -- data (checked against the installed game data), which made the entry
+        -- unmatchable - neither at runtime nor in a save scan.
+        filename_patterns = { "parallel_alchemist.xml" },
+        name_patterns = { "$animal_parallel_alchemist" },
         world_policy = "parallel",
         repeatable = true,
         default_position = nil,
@@ -355,4 +375,123 @@ function BossLocatorConfig.get_by_id(boss_id)
         end
     end
     return nil
+end
+
+-- ------------------------------------------------- matching stored entities
+--
+-- The base data of an entity that sits in a save file carries the entity name,
+-- its XML path, the tag list and the transform - nothing else, because
+-- saves/entity_parser.lua deliberately never decodes component payloads.  A
+-- save also stores the helper entities a Boss owns ('body.xml',
+-- 'boss_centipede_minion.xml', 'orb_green_boss_dragon.xml', ...), so a
+-- substring search over the path - which is good enough for a live entity that
+-- was found through a tag - would produce false positions here.
+--
+-- Stored entities are therefore matched on the exact file name stem
+-- ('boss_centipede' for 'boss_centipede.xml') or on the entity name
+-- ('$animal_boss_centipede'), and tags are compared as whole tokens.
+
+local function file_stem(path)
+    local name = tostring(path or ""):match("[^/\\]*$") or ""
+    return lower((name:gsub("%.xml$", "")))
+end
+
+local function stem_matches(path, patterns)
+    if patterns == nil then
+        return false
+    end
+    local stem = file_stem(path)
+    if stem == "" then
+        return false
+    end
+    for _, pattern in ipairs(patterns) do
+        if file_stem(pattern) == stem then
+            return true
+        end
+    end
+    return false
+end
+
+--- Entity names are compared exactly here: the name attribute of a helper
+--- entity starts with the name of its owner ('$animal_boss_centipede_minion'
+--- for '$animal_boss_centipede'), which a substring search would confuse.
+local function name_matches(name, patterns)
+    if patterns == nil then
+        return false
+    end
+    local candidate = lower(name)
+    if candidate == "" then
+        return false
+    end
+    for _, pattern in ipairs(patterns) do
+        if lower(pattern) == candidate then
+            return true
+        end
+    end
+    return false
+end
+
+local function stored_tags(record)
+    if record.stored_tag_list == nil then
+        local list = {}
+        for tag in tostring(record.tags or ""):gmatch("[^,%s]+") do
+            list[lower(tag)] = true
+        end
+        record.stored_tag_list = list
+    end
+    return record.stored_tag_list
+end
+
+local function stored_has_any_tag(record, tags)
+    if tags == nil then
+        return false
+    end
+    local list = stored_tags(record)
+    for _, tag in ipairs(tags) do
+        if list[lower(tag)] then
+            return true
+        end
+    end
+    return false
+end
+
+--- Matches one record parsed from a save file against a Boss definition.
+-- 'record' is an entity_parser record: { path, name, tags, x, y, ... }.
+function BossLocatorConfig.matches_saved_entity(config, record)
+    if record == nil then
+        return false
+    end
+
+    local filename_match = stem_matches(record.path, config.filename_patterns)
+    local name_match = name_matches(record.name, config.name_patterns)
+    if not filename_match and not name_match then
+        return false
+    end
+    if config.require_name_match and not name_match then
+        return false
+    end
+
+    if config.require_tags and config.tags ~= nil and
+        not stored_has_any_tag(record, config.tags) then
+        return false
+    end
+    if stored_has_any_tag(record, config.exclude_tags) then
+        return false
+    end
+    return true
+end
+
+--- Matches the death orb of a resurrection-aware Boss in a save file.  The
+--- component based check used at runtime is unavailable here, so the orb is
+--- recognised through its file name and entity name.
+function BossLocatorConfig.matches_saved_revival_orb(config, record)
+    if record == nil then
+        return false
+    end
+    if config.revival_orb_filename_patterns == nil and
+        config.revival_orb_name_patterns == nil then
+        return false
+    end
+    return stem_matches(record.path, config.revival_orb_filename_patterns) or
+        name_matches(record.name, config.revival_orb_name_patterns)
 end

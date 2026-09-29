@@ -10,7 +10,9 @@
 BossLocatorState = BossLocatorState or {}
 
 local PREFIX = "boss_locator.v1."
+local REVISION_KEY = PREFIX .. "sync_revision"
 local cache = {}
+local cache_revision = nil
 
 local function can_read_globals()
     return type(GlobalsGetValue) == "function"
@@ -18,6 +20,25 @@ end
 
 local function can_write_globals()
     return type(GlobalsSetValue) == "function"
+end
+
+local function current_revision()
+    if not can_read_globals() then
+        return 0
+    end
+    return tonumber(GlobalsGetValue(REVISION_KEY, "0")) or 0
+end
+
+--- Persisted counter that is bumped whenever a save scan rewrites positions.
+-- A scan runs in the settings context while the tracker keeps its own cache in
+-- the world context, so the counter is what tells the tracker that its records
+-- are stale.  Positions alone would not do: an unchanged status keeps the cache
+-- valid.
+local function bump_revision()
+    if not can_write_globals() then
+        return
+    end
+    GlobalsSetValue(REVISION_KEY, tostring(current_revision() + 1))
 end
 
 local function current_namespace()
@@ -85,6 +106,15 @@ local function load_record(world_index, boss_id)
 end
 
 function BossLocatorState.get(world_index, boss_id)
+    if can_read_globals() then
+        local revision = current_revision()
+        if cache_revision ~= revision then
+            -- Another Lua context (the save scanner) rewrote the records.
+            cache_revision = revision
+            cache = {}
+        end
+    end
+
     local key = record_key(world_index, boss_id)
     local record = cache[key]
     if record == nil then
@@ -105,6 +135,7 @@ end
 
 function BossLocatorState.clear_runtime_cache()
     cache = {}
+    cache_revision = nil
 end
 
 local function persist_record(record)
@@ -244,6 +275,42 @@ function BossLocatorState.mark_unloaded(config, world_index, x, y, frame)
     record.last_persist_frame = frame
     persist_record(record)
     return record
+end
+
+--- Records a position recovered from a save file scan (see files/save_sync.lua).
+--
+-- A stored entity proves where a Boss was when the game last wrote the chunk,
+-- but not that it is alive: corpses are stored as entities too.  A confirmed
+-- death therefore stays sticky, a Boss that is currently tracked keeps its
+-- live status, the death orb of a resurrection-aware Boss becomes
+-- "revive_pending", and every other record becomes "unloaded" - the position is
+-- known, the current load state is not.
+-- Returns record, changed, dead.
+function BossLocatorState.sync_saved_position(config, world_index, x, y, frame, role)
+    local record = BossLocatorState.get(world_index, config.id)
+    if record.status == "dead" or record.status == "defeated" then
+        return record, false, true
+    end
+
+    local changed = record.last_x ~= x or record.last_y ~= y
+    record.last_x = x
+    record.last_y = y
+    record.observed = true
+    record.last_seen_frame = frame
+
+    local target = "unloaded"
+    if role == "revival_orb" then
+        target = "revive_pending"
+    end
+    if record.status ~= "alive" and record.status ~= target then
+        record.status = target
+        changed = true
+    end
+
+    record.last_persist_frame = frame
+    persist_record(record)
+    bump_revision()
+    return record, changed, false
 end
 
 function BossLocatorState.mark_dead(config, world_index, x, y, frame)

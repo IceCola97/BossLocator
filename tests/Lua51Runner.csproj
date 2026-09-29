@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Runs the Lua 5.1 test suite (tests/*_test.lua) against the lua51.dll that
+       ships with Noita, so the tests use the same Lua generation as the game.
+       Run it from the repository root, which the tests need for their relative
+       paths:
+
+         dotnet run project tests/Lua51Runner.csproj saves tests/syntax_test.lua
+
+       (the argument separator, two dashes, goes between the project and the
+       first runner argument). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <PlatformTarget>x86</PlatformTarget>
+    <RuntimeIdentifier>win-x86</RuntimeIdentifier>
+    <AssemblyName>Lua51Runner</AssemblyName>
+    <RootNamespace>Lua51Runner</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+</Project>

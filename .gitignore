@@ -1,2 +1,4 @@
 .dotnet-home/
 dist/
+bin/
+obj/
