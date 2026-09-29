@@ -11,7 +11,14 @@ setlocal
 set "NATIVE=%~dp0native"
 set "SRC=%~dp0..\build\fastlz.c"
 set "DEF=%~dp0..\build\fastlz.def"
-set "VSROOT=D:\ClsIDE\VisualStudio\2026\Community"
+set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+set "VSROOT="
+
+for /f "usebackq delims=" %%I in (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VSROOT=%%I"
+if not defined VSROOT (
+  echo [ERROR] Could not find a Visual Studio installation with C++ build tools.
+  exit /b 1
+)
 
 if not exist "%NATIVE%\obj" mkdir "%NATIVE%\obj"
 
