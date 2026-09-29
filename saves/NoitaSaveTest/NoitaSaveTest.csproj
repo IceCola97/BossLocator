@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PlatformTarget>x86</PlatformTarget>
+    <RuntimeIdentifier>win-x86</RuntimeIdentifier>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Shared pieces live one level up in saves/ and in the fastlz module:
+         a single source of truth, copied next to the executable on build. -->
+    <None Include="..\lua51.dll" Link="lua51.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\entity_parser.lua" Link="entity_parser.lua" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\save_scanner.lua" Link="save_scanner.lua" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\fastlz\fastlz.lua" Link="fastlz.lua" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="support.lua" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="scan_entities.lua" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="validate.lua" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="spotcheck.lua" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

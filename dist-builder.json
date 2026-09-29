@@ -12,6 +12,7 @@
   "exclude": [
     ".git/",
     "tests/",
+    "saves/NoitaSaveTest/",
     "*.dll",
     "fastlz/FastLzInterop/",
     "fastlz/build/"
