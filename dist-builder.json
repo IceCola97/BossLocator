@@ -1,0 +1,20 @@
+{
+  "source": ".",
+  "output": "dist",
+  "include": [
+    "**/*.lua",
+    "mod.xml",
+    "**/README.md",
+    "**/README.en.md",
+    "**/LICENSE",
+    "**/licenses/**"
+  ],
+  "exclude": [
+    ".git/",
+    "tests/",
+    "*.dll",
+    "fastlz/FastLzInterop/",
+    "fastlz/build/"
+  ],
+  "zip": false
+}
